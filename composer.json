@@ -1,0 +1,27 @@
+{
+    "name": "tornado-engine/module-finder",
+    "description": "Tornado Engine core-module: finds modules on GitHub, and installs and updates them from the /modules page.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^13.0",
+        "composer/semver": "^3.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "TornadoEngine\\ModuleFinder\\": "src/"
+        }
+    },
+    "extra": {
+        "tornado": {
+            "name": "Module Finder",
+            "core": ">=0.7",
+            "core-module": true,
+            "provider": "TornadoEngine\\ModuleFinder\\ModuleFinderServiceProvider"
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    }
+}
