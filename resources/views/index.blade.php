@@ -7,10 +7,10 @@
     @endif
 
     <x-settings-card :title="__('Installs and updates')">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <p class="text-gray-600 dark:text-gray-400">
-                {{ $reachable ? __('Modules are found on GitHub. The list is checked at most once an hour.') : __('Couldn\'t reach GitHub, so only installed modules are shown.') }}
-            </p>
+        <div class="flex flex-wrap items-center justify-end gap-3">
+            @unless ($reachable)
+                <p class="text-gray-600 dark:text-gray-400">{{ __('Couldn\'t reach GitHub, so only installed modules are shown.') }}</p>
+            @endunless
             <form method="POST" action="{{ route('modules.check') }}">
                 @csrf
                 <x-secondary-button type="submit">{{ __('Check now') }}</x-secondary-button>
