@@ -22,7 +22,7 @@ class ModuleFinderServiceProvider extends ServiceProvider
         });
 
         $this->callAfterResolving(Nav::class, function (Nav $nav) {
-            $nav->user(__('Modules'), 'modules.index', active: 'modules.*', order: 850, can: 'modules.manage');
+            $nav->add(__('Modules'), 'modules.index', active: 'modules.*', order: 30, can: 'modules.manage', group: 'administration');
             if (method_exists($nav, 'tool')) {
                 $nav->tool(__('Modules'), 'modules.index', __('Find, install and update modules.'),
                     section: __('Administration'), icon: 'puzzle', color: 'purple', can: 'modules.manage');
