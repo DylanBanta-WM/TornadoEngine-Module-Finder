@@ -21,7 +21,7 @@ class ModulesController extends Controller
             'official' => $listings->filter(fn (Listing $listing) => $listing->installed === null && $listing->official),
             'community' => $listings->filter(fn (Listing $listing) => $listing->installed === null && ! $listing->official),
             'reachable' => $finder->reachable(),
-            'jobs' => UpdateJob::with('user')->where('kind', 'module')->latest('id')->take(5)->get(),
+            'jobs' => UpdateJob::with('user')->where('kind', 'module')->latest('id')->take(200)->get(),
             'busy' => UpdateJob::busy(),
         ]);
     }

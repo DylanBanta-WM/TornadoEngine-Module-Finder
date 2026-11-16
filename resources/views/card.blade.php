@@ -47,10 +47,14 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3">
         @if ($listing->url)
-            <a href="{{ $listing->url }}" target="_blank" rel="noopener" class="inline-flex min-h-11 items-center font-medium text-indigo-600 dark:text-indigo-400 underline">{{ __('View the code') }}</a>
+            <x-secondary-link :href="$listing->url" target="_blank" rel="noopener">{{ __('View the code') }}</x-secondary-link>
+        @endif
+        <div class="ms-auto flex flex-wrap gap-3">
+        @if ($listing->settings)
+            <x-secondary-link :href="url($listing->settings)">{{ __('Settings') }}</x-secondary-link>
         @endif
         @if (($listing->installed === null && $listing->latest) || $listing->updatable())
-            <form method="POST" action="{{ route('modules.install') }}" class="ms-auto"
+            <form method="POST" action="{{ route('modules.install') }}"
                   onsubmit="return confirm(@js($listing->official
                       ? ($listing->installed ? __('Update :name to :version?', ['name' => $listing->name, 'version' => $listing->latest]) : __('Install :name :version?', ['name' => $listing->name, 'version' => $listing->latest]))
                       : __(':name isn\'t an official module. It will run with full access to your website and its data. Only continue if you\'ve read its code and trust it.', ['name' => $listing->name])))">
@@ -59,5 +63,6 @@
                 <x-primary-button :disabled="$busy">{{ $listing->installed ? __('Update to :version', ['version' => $listing->latest]) : __('Install') }}</x-primary-button>
             </form>
         @endif
+        </div>
     </div>
 </li>

@@ -24,6 +24,8 @@ final class Listing
         public bool $coreModule = false,
         /** @var list<string> PHP extensions it's waiting for (installed modules only). */
         public array $missingExtensions = [],
+        /** Its settings page, when it's installed and has one. */
+        public ?string $settings = null,
     ) {}
 
     public function updatable(): bool

@@ -47,6 +47,7 @@ class Finder
             $listings[$module->package]->installed = ltrim($module->version, 'v');
             $listings[$module->package]->coreModule = $module->coreModule;
             $listings[$module->package]->missingExtensions = $module->missingExtensions ?? [];
+            $listings[$module->package]->settings = $module->compatible ? ($module->settings ?? null) : null;
         }
 
         uasort($listings, fn (Listing $a, Listing $b) => strcasecmp($a->name, $b->name));
