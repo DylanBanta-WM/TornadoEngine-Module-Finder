@@ -44,7 +44,7 @@ class ModuleFinderTest extends TestCase
             ]]),
             'raw.githubusercontent.com/DylanBanta-WM/TornadoEngine-GAM/*' => Http::response($composer('tornado-engine/gam', 'GAM')),
             'raw.githubusercontent.com/DylanBanta-WM/TornadoEngine-GAM-Runner/*' => Http::response($composer('tornado-engine/gam-runner', 'GAM Runner')),
-            'raw.githubusercontent.com/someone/TornadoWidgets/*' => Http::response($composer('someone/widgets', 'Widgets')),
+            'raw.githubusercontent.com/someone/TornadoWidgets/*' => Http::response($composer('someone/widgets', 'Widgets') + ['require' => ['tornado-engine/gam-runner' => '*', 'laravel/framework' => '*']]),
             'raw.githubusercontent.com/someone/NotAModule/*' => Http::response(['name' => 'someone/not-a-module']),
             // Packagist's minified format: later entries only list what changed.
             'repo.packagist.org/p2/tornado-engine/gam.json' => Http::response(['packages' => ['tornado-engine/gam' => [
@@ -54,7 +54,7 @@ class ModuleFinderTest extends TestCase
                 ['version' => 'dev-main'],
             ]]]),
             'repo.packagist.org/p2/tornado-engine/gam-runner.json' => Http::response(['packages' => ['tornado-engine/gam-runner' => [
-                ['version' => 'v0.1.0', 'extra' => ['tornado' => ['core' => '>=0.7']]],
+                ['version' => 'v0.1.0', 'extra' => ['tornado' => ['core' => '>=0.7']], 'require' => ['php' => '^8.4', 'tornado-engine/gam' => '>=0.5']],
             ]]]),
             'repo.packagist.org/*' => Http::response([], 404),
             'api.github.com/repos/someone/TornadoWidgets/tags*' => Http::response([['name' => 'v2.1.0'], ['name' => 'v2.0.0']]),
@@ -81,6 +81,17 @@ class ModuleFinderTest extends TestCase
                 'Community modules', 'Install them at your own risk', 'Widgets', 'Community', 'Version 2.1.0.', 'View the code'], false)
             ->assertDontSee('OldThing')
             ->assertDontSee('not-a-module');
+    }
+
+    public function test_modules_say_which_other_modules_they_need(): void
+    {
+        $this->actingAs($this->admin())->get('/modules')
+            ->assertSee('GAM is also required for GAM Runner to work.')
+            ->assertDontSee('Installing GAM Runner installs GAM too.')
+            ->assertSee('GAM Runner is also required for Widgets to work.')
+            ->assertSee('Installing Widgets installs GAM Runner too.')
+            ->assertDontSee('laravel/framework')
+            ->assertDontSee('confirm(', false);
     }
 
     public function test_installing_queues_a_job_for_the_updater(): void

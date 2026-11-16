@@ -22,6 +22,15 @@
         </p>
     @endif
 
+    @if ($needs = array_values(array_filter(array_map(fn ($package) => $all[$package] ?? null, $listing->requires))))
+        <p class="text-gray-600 dark:text-gray-400">
+            {{ trans_choice(':modules is also required for :name to work.|:modules are also required for :name to work.', count($needs), ['modules' => implode(', ', array_map(fn ($need) => $need->name, $needs)), 'name' => $listing->name]) }}
+            @if ($missing = array_filter($needs, fn ($need) => $need->installed === null))
+                {{ __('Installing :name installs :modules too.', ['name' => $listing->name, 'modules' => implode(', ', array_map(fn ($need) => $need->name, $missing))]) }}
+            @endif
+        </p>
+    @endif
+
     @if ($listing->description)
         <p class="text-gray-600 dark:text-gray-400">{{ $listing->description }}</p>
     @endif
@@ -54,10 +63,7 @@
             <x-secondary-link :href="url($listing->settings)">{{ __('Settings') }}</x-secondary-link>
         @endif
         @if (($listing->installed === null && $listing->latest) || $listing->updatable())
-            <form method="POST" action="{{ route('modules.install') }}"
-                  onsubmit="return confirm(@js($listing->official
-                      ? ($listing->installed ? __('Update :name to :version?', ['name' => $listing->name, 'version' => $listing->latest]) : __('Install :name :version?', ['name' => $listing->name, 'version' => $listing->latest]))
-                      : __(':name isn\'t an official module. It will run with full access to your website and its data. Only continue if you\'ve read its code and trust it.', ['name' => $listing->name])))">
+            <form method="POST" action="{{ route('modules.install') }}">
                 @csrf
                 <input type="hidden" name="package" value="{{ $listing->package }}">
                 <x-primary-button :disabled="$busy">{{ $listing->installed ? __('Update to :version', ['version' => $listing->latest]) : __('Install') }}</x-primary-button>

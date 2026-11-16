@@ -23,6 +23,7 @@ class ModulesController extends Controller
             'reachable' => $finder->reachable(),
             'jobs' => UpdateJob::with('user')->where('kind', 'module')->latest('id')->take(200)->get(),
             'busy' => UpdateJob::busy(),
+            'all' => $listings->all(),
         ]);
     }
 

@@ -32,7 +32,7 @@
                 @endif
                 <ul class="mt-2 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     @foreach ($listings as $listing)
-                        @include('module-finder::card', ['listing' => $listing, 'busy' => $busy])
+                        @include('module-finder::card', ['listing' => $listing, 'busy' => $busy, 'all' => $all])
                     @endforeach
                 </ul>
             </section>

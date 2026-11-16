@@ -26,6 +26,8 @@ final class Listing
         public array $missingExtensions = [],
         /** Its settings page, when it's installed and has one. */
         public ?string $settings = null,
+        /** @var list<string> Other modules (packages) it needs. */
+        public array $requires = [],
     ) {}
 
     public function updatable(): bool

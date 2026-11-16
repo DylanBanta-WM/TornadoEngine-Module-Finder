@@ -50,6 +50,11 @@ class Finder
             $listings[$module->package]->settings = $module->compatible ? ($module->settings ?? null) : null;
         }
 
+        // Only other modules count as what a module needs (not PHP or Laravel packages).
+        foreach ($listings as $listing) {
+            $listing->requires = array_values(array_filter($listing->requires, fn ($package) => isset($listings[$package])));
+        }
+
         uasort($listings, fn (Listing $a, Listing $b) => strcasecmp($a->name, $b->name));
 
         return $listings;
@@ -99,13 +104,13 @@ class Finder
             return null;
         }
 
-        // [version => Core range it needs]
+        // [version => ['core' => Core range it needs, 'requires' => packages it requires]]
         $versions = $this->packagist($package);
         $onPackagist = $versions !== null;
-        $versions ??= $this->tags($repo['full_name'], (string) ($tornado['core'] ?? '*'));
+        $versions ??= $this->tags($repo['full_name'], (string) ($tornado['core'] ?? '*'), array_keys($composer['require'] ?? []));
 
         $core = config('tornado.version');
-        $usable = array_keys(array_filter($versions, fn ($range) => $this->supports($range, $core)));
+        $usable = array_keys(array_filter($versions, fn ($version) => $this->supports($version['core'], $core)));
         $all = array_keys($versions);
         $latest = $usable ? Semver::rsort($usable)[0] : null;
         $newest = $all ? Semver::rsort($all)[0] : null;
@@ -119,10 +124,11 @@ class Finder
             'onPackagist' => $onPackagist,
             'latest' => $latest,
             'needsNewerCore' => $newest !== $latest ? $newest : null,
+            'requires' => $latest ? $versions[$latest]['requires'] : [],
         ];
     }
 
-    /** @return array<string, string>|null [version => Core range], or null if it isn't on Packagist */
+    /** @return array<string, array{core: string, requires: list<string>}>|null by version, or null if it isn't on Packagist */
     private function packagist(string $package): ?array
     {
         $response = $this->http()->get("https://repo.packagist.org/p2/{$package}.json");
@@ -139,21 +145,24 @@ class Finder
 
             $version = ltrim((string) ($entry['version'] ?? ''), 'v');
             if (preg_match('/^\d+\.\d+\.\d+$/', $version)) {
-                $versions[$version] = (string) ($entry['extra']['tornado']['core'] ?? '*');
+                $versions[$version] = ['core' => (string) ($entry['extra']['tornado']['core'] ?? '*'), 'requires' => array_keys((array) ($entry['require'] ?? []))];
             }
         }
 
         return $versions;
     }
 
-    /** @return array<string, string> */
-    private function tags(string $repo, string $core): array
+    /**
+     * @param  list<string>  $requires
+     * @return array<string, array{core: string, requires: list<string>}>
+     */
+    private function tags(string $repo, string $core, array $requires): array
     {
         $versions = [];
         foreach ($this->http()->get("https://api.github.com/repos/{$repo}/tags", ['per_page' => 100])->throw()->json('*.name') ?? [] as $tag) {
             $version = ltrim((string) $tag, 'v');
             if (preg_match('/^\d+\.\d+\.\d+$/', $version)) {
-                $versions[$version] = $core;
+                $versions[$version] = ['core' => $core, 'requires' => $requires];
             }
         }
 
