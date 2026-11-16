@@ -16,6 +16,12 @@
         </p>
     </div>
 
+    @if ($listing->missingExtensions)
+        <p class="rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-amber-900 dark:text-amber-200">
+            {!! __('Off until the server is rebuilt with :extensions: run :cmd.', ['extensions' => e(implode(', ', $listing->missingExtensions)), 'cmd' => '<code class="font-mono">docker compose up -d --build</code>']) !!}
+        </p>
+    @endif
+
     @if ($listing->description)
         <p class="text-gray-600 dark:text-gray-400">{{ $listing->description }}</p>
     @endif

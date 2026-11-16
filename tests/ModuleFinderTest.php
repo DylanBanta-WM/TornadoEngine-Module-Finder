@@ -27,7 +27,7 @@ class ModuleFinderTest extends TestCase
         $this->installed = sys_get_temp_dir().'/installed.'.uniqid().'.json';
         file_put_contents($this->installed, json_encode(['packages' => [
             ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.4.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6']]],
-            ['name' => 'district/homegrown', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Homegrown', 'core' => '>=0.6']]],
+            ['name' => 'district/homegrown', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Homegrown', 'core' => '>=0.6', 'php-extensions' => ['zz_not_installed']]]],
         ]]));
         $this->app->instance(ModuleRegistry::class, new ModuleRegistry($this->installed, '0.7.0'));
 
@@ -76,7 +76,7 @@ class ModuleFinderTest extends TestCase
     {
         $this->actingAs($this->admin())->get('/modules')
             ->assertOk()
-            ->assertSeeInOrder(['Installed', 'GAM', 'Installed: 0.4.0.', '0.5.0 is available.', '0.9.0 needs a newer Tornado Engine Core.', 'Update to 0.5.0', 'Homegrown', 'Not listed on GitHub',
+            ->assertSeeInOrder(['Installed', 'GAM', 'Installed: 0.4.0.', '0.5.0 is available.', '0.9.0 needs a newer Tornado Engine Core.', 'Update to 0.5.0', 'Homegrown', 'Off until the server is rebuilt with zz_not_installed', 'Not listed on GitHub',
                 'Official modules', 'GAM Runner', 'Official', 'Version 0.1.0.', 'Install',
                 'Community modules', 'Install them at your own risk', 'Widgets', 'Community', 'Version 2.1.0.', 'View the code'])
             ->assertDontSee('OldThing')

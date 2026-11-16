@@ -22,6 +22,8 @@ final class Listing
         public ?string $needsNewerCore,
         public ?string $installed = null,
         public bool $coreModule = false,
+        /** @var list<string> PHP extensions it's waiting for (installed modules only). */
+        public array $missingExtensions = [],
     ) {}
 
     public function updatable(): bool
