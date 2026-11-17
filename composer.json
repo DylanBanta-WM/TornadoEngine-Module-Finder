@@ -16,12 +16,12 @@
     "extra": {
         "tornado": {
             "name": "Module Finder",
-            "core": ">=0.7",
+            "core": ">=0.18",
             "core-module": true,
             "provider": "TornadoEngine\\ModuleFinder\\ModuleFinderServiceProvider"
         },
         "branch-alias": {
-            "dev-main": "0.7.x-dev"
+            "dev-main": "0.8.x-dev"
         }
     }
 }

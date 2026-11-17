@@ -12,8 +12,12 @@ use TornadoEngine\ModuleFinder\Listing;
 
 class ModulesController extends Controller
 {
-    public function index(Finder $finder): View
+    public function index(Request $request, Finder $finder): View|RedirectResponse
     {
+        if ($settings = $this->settingsToOpen($request)) {
+            return redirect($settings);
+        }
+
         $listings = collect($finder->listings());
 
         return view('module-finder::index', [
@@ -25,6 +29,28 @@ class ModulesController extends Controller
             'busy' => UpdateJob::busy(),
             'all' => $listings->all(),
         ]);
+    }
+
+    /**
+     * After someone installs a module that needs setting up, its settings page, once: when the
+     * install (and any rebuild it needs) is done.
+     */
+    private function settingsToOpen(Request $request): ?string
+    {
+        if (UpdateJob::busy() || (class_exists(\App\Updates\Rebuild::class) && (\App\Updates\Rebuild::needed() || \App\Updates\Rebuild::running()))) {
+            return null;
+        }
+
+        $modules = app(\App\Modules\ModuleRegistry::class)->all();
+        foreach (UpdateJob::where('user_id', $request->user()->id)->where('kind', 'module')->where('install', true)->where('status', 'done')->whereNull('opened_at')->orderBy('id')->get() as $job) {
+            $job->update(['opened_at' => now()]);
+            $module = $modules[$job->package] ?? null;
+            if ($module && $module->compatible && ($module->needsSetup ?? false) && $module->settings) {
+                return url($module->settings);
+            }
+        }
+
+        return null;
     }
 
     public function check(Finder $finder): RedirectResponse
@@ -49,7 +75,7 @@ class ModulesController extends Controller
             return back()->withErrors(['modules' => __('Another install or update is still running. Wait for it to finish.')]);
         }
 
-        UpdateJob::queue('module', $listing->latest, $listing->package, $listing->onPackagist ? null : $listing->url);
+        UpdateJob::queue('module', $listing->latest, $listing->package, $listing->onPackagist ? null : $listing->url, install: $listing->installed === null);
 
         return back()->with('modules_status', $listing->installed
             ? __('Updating :name to :version.', ['name' => $listing->name, 'version' => $listing->latest])

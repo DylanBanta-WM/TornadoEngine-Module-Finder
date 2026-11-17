@@ -141,4 +141,25 @@ class ModuleFinderTest extends TestCase
         $this->actingAs(User::factory()->create())->get('/modules')->assertForbidden();
         $this->actingAs(User::factory()->create())->post('/modules/install', ['package' => 'tornado-engine/gam'])->assertForbidden();
     }
+
+    public function test_a_freshly_installed_module_that_needs_setup_opens_its_settings_once(): void
+    {
+        $admin = $this->admin();
+        file_put_contents($this->installed, json_encode(['packages' => [
+            ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.5.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6', 'settings' => '/administration/gam', 'needs-setup' => true]]],
+        ]]));
+        $this->app->instance(ModuleRegistry::class, new ModuleRegistry($this->installed, '0.7.0'));
+
+        // An update doesn't; someone else's install doesn't.
+        UpdateJob::create(['kind' => 'module', 'package' => 'tornado-engine/gam', 'version' => '0.5.0', 'status' => 'done', 'user_id' => $admin->id]);
+        UpdateJob::create(['kind' => 'module', 'package' => 'tornado-engine/gam', 'version' => '0.5.0', 'status' => 'done', 'install' => true, 'user_id' => $this->admin()->id]);
+        $this->actingAs($admin)->get('/modules')->assertOk();
+
+        $job = UpdateJob::create(['kind' => 'module', 'package' => 'tornado-engine/gam', 'version' => '0.5.0', 'status' => 'running', 'install' => true, 'user_id' => $admin->id]);
+        $this->actingAs($admin)->get('/modules')->assertOk();
+
+        $job->update(['status' => 'done']);
+        $this->actingAs($admin)->get('/modules')->assertRedirect('/administration/gam');
+        $this->actingAs($admin)->get('/modules')->assertOk();
+    }
 }
