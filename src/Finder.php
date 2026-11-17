@@ -60,6 +60,25 @@ class Finder
         return $listings;
     }
 
+    /**
+     * What a module needs, for the page: "GAM Module (will auto install), Broker Module". Core
+     * modules aren't listed: they're always there.
+     *
+     * @param  array<string, Listing>  $all
+     */
+    public static function requirements(Listing $listing, array $all): string
+    {
+        $needs = [];
+        foreach ($listing->requires as $package) {
+            $need = $all[$package] ?? null;
+            if ($need && ! $need->coreModule) {
+                $needs[] = __(':name Module', ['name' => $need->name]).($need->installed === null ? ' '.__('(will auto install)') : '');
+            }
+        }
+
+        return implode(', ', $needs);
+    }
+
     /** Whether the last search reached GitHub. */
     public function reachable(): bool
     {

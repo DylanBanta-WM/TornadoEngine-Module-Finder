@@ -86,10 +86,9 @@ class ModuleFinderTest extends TestCase
     public function test_modules_say_which_other_modules_they_need(): void
     {
         $this->actingAs($this->admin())->get('/modules')
-            ->assertSee('GAM is also required for GAM Runner to work.')
-            ->assertDontSee('Installing GAM Runner installs GAM too.')
-            ->assertSee('GAM Runner is also required for Widgets to work.')
-            ->assertSee('Installing Widgets installs GAM Runner too.')
+            ->assertSee('Requirements: GAM Module')
+            ->assertDontSee('Requirements: GAM Module (will auto install)')
+            ->assertSee('Requirements: GAM Runner Module (will auto install)')
             ->assertDontSee('laravel/framework')
             ->assertDontSee('confirm(', false);
     }

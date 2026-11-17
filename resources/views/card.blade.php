@@ -22,13 +22,8 @@
         </p>
     @endif
 
-    @if ($needs = array_values(array_filter(array_map(fn ($package) => $all[$package] ?? null, $listing->requires))))
-        <p class="text-gray-600 dark:text-gray-400">
-            {{ trans_choice(':modules is also required for :name to work.|:modules are also required for :name to work.', count($needs), ['modules' => implode(', ', array_map(fn ($need) => $need->name, $needs)), 'name' => $listing->name]) }}
-            @if ($missing = array_filter($needs, fn ($need) => $need->installed === null))
-                {{ __('Installing :name installs :modules too.', ['name' => $listing->name, 'modules' => implode(', ', array_map(fn ($need) => $need->name, $missing))]) }}
-            @endif
-        </p>
+    @if ($needs = \TornadoEngine\ModuleFinder\Finder::requirements($listing, $all))
+        <p class="text-gray-600 dark:text-gray-400">{{ __('Requirements: :modules', ['modules' => $needs]) }}</p>
     @endif
 
     @if ($listing->description)
