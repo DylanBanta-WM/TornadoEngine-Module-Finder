@@ -15,7 +15,10 @@
         <p class="rounded-md bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-800 dark:text-red-300">{{ $errors->first('modules') }}</p>
     @endif
 
-    <section class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg px-4 py-3 sm:px-6" x-data="{ jobs: false }">
+    {{-- Open while something is installing (the page reloads to show progress); otherwise as it was left. --}}
+    <section class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg px-4 py-3 sm:px-6"
+             x-data="{ jobs: @js($busy) || (() => { try { return localStorage.getItem('modules.jobs') === '1' } catch (e) { return false } })() }"
+             x-init="$watch('jobs', value => { try { localStorage.setItem('modules.jobs', value ? '1' : '0') } catch (e) {} })">
         <div class="flex flex-wrap items-center gap-3 text-sm">
             <button type="button" x-on:click="jobs = ! jobs" class="inline-flex min-h-11 items-center gap-2 font-medium text-gray-900 dark:text-gray-100" :aria-expanded="jobs">
                 <svg class="size-4 transition-transform" :class="jobs && 'rotate-90'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -32,7 +35,7 @@
                 <x-secondary-button type="submit">{{ __('Check now') }}</x-secondary-button>
             </form>
         </div>
-        <div x-show="jobs" x-cloak class="mt-3 text-sm">
+        <div x-show="jobs" @unless ($busy) x-cloak @endunless class="mt-3 text-sm">
             <x-update-jobs :jobs="$jobs" />
         </div>
     </section>
