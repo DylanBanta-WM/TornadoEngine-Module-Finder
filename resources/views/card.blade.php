@@ -7,7 +7,7 @@
         <p class="flex flex-wrap gap-1">
             @if ($listing->official)
                 <span class="rounded bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">{{ __('Official') }}</span>
-            @elseif ($listing->url)
+            @elseif ($listing->url && ($section ?? 'other') === 'other')
                 <span class="rounded bg-amber-50 dark:bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">{{ __('Community') }}</span>
             @endif
             @if ($listing->coreModule)
@@ -24,6 +24,10 @@
 
     @if ($needs = \TornadoEngine\ModuleFinder\Finder::requirements($listing, $all))
         <p class="text-gray-600 dark:text-gray-400">{{ __('Requirements: :modules', ['modules' => $needs]) }}</p>
+    @endif
+
+    @if ($listing->installed !== null && ! $listing->coreModule && $listing->requiredBy)
+        <p class="text-gray-600 dark:text-gray-400">{{ __('Needed by :modules, so it can\'t be uninstalled.', ['modules' => implode(', ', $listing->requiredBy)]) }}</p>
     @endif
 
     @if ($listing->description)
@@ -63,6 +67,16 @@
                 <input type="hidden" name="package" value="{{ $listing->package }}">
                 <x-primary-button :disabled="$busy">{{ $listing->installed ? __('Update to :version', ['version' => $listing->latest]) : __('Install') }}</x-primary-button>
             </form>
+        @endif
+        @if ($listing->uninstallable())
+            <x-confirm :action="route('modules.uninstall')" :message="__('Uninstall :name?', ['name' => $listing->name])" :confirm="__('Uninstall')" danger>
+                <x-slot name="trigger"><x-danger-button type="button" :disabled="$busy">{{ __('Uninstall') }}</x-danger-button></x-slot>
+                <input type="hidden" name="package" value="{{ $listing->package }}">
+                <label class="flex min-h-11 items-center gap-2 text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" name="delete_data" value="1" class="rounded text-indigo-600 border-gray-300 dark:border-gray-700 dark:bg-gray-900 focus:ring-indigo-500">
+                    {{ __('Also delete its data') }}
+                </label>
+            </x-confirm>
         @endif
         </div>
         @foreach (app(\TornadoEngine\ModuleFinder\ModuleActions::class)->views() as $action)

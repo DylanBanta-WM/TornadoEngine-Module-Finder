@@ -2,6 +2,7 @@
 
 namespace TornadoEngine\ModuleFinder\Tests;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Modules\ModuleRegistry;
 use App\Updates\UpdateJob;
@@ -78,16 +79,98 @@ class ModuleFinderTest extends TestCase
         return User::factory()->create(['is_admin' => true]);
     }
 
-    public function test_modules_are_found_and_sorted_into_installed_official_and_community(): void
+    public function test_modules_are_found_and_shown(): void
     {
         $this->actingAs($this->admin())->get('/modules')
             ->assertOk()
-            ->assertSeeInOrder(['Installed', 'GAM', 'Installed: 0.4.0.', '0.5.0 is available.', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/administration/gam"', 'Update to 0.5.0', 'Homegrown', 'Off until the server is rebuilt with zz_not_installed', 'Not listed on GitHub',
-                'Official modules', 'GAM Runner', 'Official', 'Version 0.1.0.', 'Install',
-                'Community modules', 'Install them at your own risk', 'Widgets', 'Community', 'Version 2.1.0.', 'View the code'], false)
+            ->assertSeeInOrder(['Official modules', 'GAM', 'Installed: 0.4.0.', '0.5.0 is available.', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/administration/gam"', 'Update to 0.5.0', 'Uninstall',
+                'GAM Runner', 'Official', 'Version 0.1.0.', 'Install',
+                'Other districts&#039; modules', 'These aren&#039;t reviewed', 'Homegrown', 'Off until the server is rebuilt with zz_not_installed', 'Not listed on GitHub',
+                'Widgets', 'Community', 'Version 2.1.0.', 'View the code'], false)
             ->assertDontSee('OldThing')
             ->assertDontSee('Git Only')
             ->assertDontSee('not-a-module');
+    }
+
+    /** @param list<array<string, mixed>> $packages */
+    private function install(array $packages): void
+    {
+        file_put_contents($this->installed, json_encode(['packages' => $packages]));
+        $this->app->instance(ModuleRegistry::class, new ModuleRegistry($this->installed, '0.7.0'));
+    }
+
+    public function test_modules_are_listed_as_official_then_this_districts_then_other_districts(): void
+    {
+        Setting::put('site.url', 'https://te.district.org');
+        // A module linked from a folder in web/modules (GitHub's, under another vendor name here).
+        $up = str_repeat('../', substr_count(trim(dirname($this->installed), '/'), '/') + 1);
+        $this->install([
+            ['name' => 'district/homegrown', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Homegrown', 'core' => '>=0.6']]],
+            ['name' => 'tornado-engine/nav', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Nav', 'core' => '>=0.6', 'core-module' => true]]],
+            ['name' => 'elsewhere/folder-thing', 'pretty_version' => 'dev-main', 'install-path' => $up.ltrim(base_path('modules/github'), '/')],
+            ['name' => 'elsewhere/unlisted', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Unlisted', 'core' => '>=0.6']]],
+        ]);
+
+        $this->actingAs($this->admin())->get('/modules')
+            ->assertOk()
+            ->assertSeeInOrder(['Official modules', 'Nav', 'Core module', 'GAM', 'GAM Runner',
+                'Your district&#039;s modules', 'GitHub', 'elsewhere/folder-thing', 'Homegrown',
+                'Other districts&#039; modules', 'These aren&#039;t reviewed, and a module can read and change anything the website can.', 'Unlisted', 'Widgets', 'Community'], false);
+    }
+
+    public function test_uninstall_is_offered_for_modules_nothing_else_needs(): void
+    {
+        $this->install([
+            ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.5.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6']]],
+            ['name' => 'tornado-engine/gam-runner', 'pretty_version' => 'v0.1.0', 'require' => ['tornado-engine/gam' => '>=0.5'], 'extra' => ['tornado' => ['name' => 'GAM Runner', 'core' => '>=0.6']]],
+            ['name' => 'tornado-engine/nav', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Nav', 'core' => '>=0.6', 'core-module' => true]]],
+        ]);
+
+        $page = $this->actingAs($this->admin())->get('/modules')->assertOk();
+        $page->assertSeeInOrder(['GAM', 'Needed by GAM Runner, so it can&#039;t be uninstalled.', 'GAM Runner', 'Uninstall GAM Runner?', 'Also delete its data', 'Nav'], false)
+            ->assertDontSee('Uninstall GAM?')
+            ->assertDontSee('Uninstall Nav?')
+            ->assertDontSee('confirm(', false);
+        $this->assertStringNotContainsString('checked', $page->getContent());
+    }
+
+    public function test_uninstalling_queues_a_job_for_the_updater(): void
+    {
+        $admin = $this->admin();
+        $this->install([
+            ['name' => 'someone/widgets', 'pretty_version' => 'v2.1.0', 'extra' => ['tornado' => ['name' => 'Widgets', 'core' => '>=0.6']]],
+            ['name' => 'district/homegrown', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Homegrown', 'core' => '>=0.6']]],
+        ]);
+
+        $this->actingAs($admin)->post('/modules/uninstall', ['package' => 'someone/widgets'])->assertSessionHas('modules_status', 'Uninstalling Widgets.');
+        $job = UpdateJob::sole();
+        $this->assertSame(['remove', 'someone/widgets', false, null], [$job->kind, $job->package, $job->delete_data, $job->repository]);
+
+        // One at a time.
+        $this->actingAs($admin)->from('/modules')->post('/modules/uninstall', ['package' => 'district/homegrown'])->assertSessionHasErrors('modules');
+        $job->update(['status' => 'done']);
+
+        $this->actingAs($admin)->post('/modules/uninstall', ['package' => 'district/homegrown', 'delete_data' => '1']);
+        $this->assertSame(['district/homegrown', true], [UpdateJob::latest('id')->first()->package, UpdateJob::latest('id')->first()->delete_data]);
+
+        // It's shown with the installs and updates.
+        $this->actingAs($admin)->get('/modules')->assertSee('Uninstall district/homegrown and delete its data');
+    }
+
+    public function test_core_modules_and_modules_others_need_cant_be_uninstalled(): void
+    {
+        $admin = $this->admin();
+        $this->install([
+            ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.5.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6']]],
+            ['name' => 'tornado-engine/gam-runner', 'pretty_version' => 'v0.1.0', 'require' => ['tornado-engine/gam' => '>=0.5'], 'extra' => ['tornado' => ['name' => 'GAM Runner', 'core' => '>=0.6']]],
+            ['name' => 'tornado-engine/nav', 'pretty_version' => 'v1.0.0', 'extra' => ['tornado' => ['name' => 'Nav', 'core' => '>=0.6', 'core-module' => true]]],
+        ]);
+
+        $this->actingAs($admin)->from('/modules')->post('/modules/uninstall', ['package' => 'tornado-engine/nav'])->assertSessionHasErrors(['modules' => 'Core modules can\'t be uninstalled.']);
+        $this->actingAs($admin)->from('/modules')->post('/modules/uninstall', ['package' => 'tornado-engine/gam'])->assertSessionHasErrors(['modules' => 'It\'s needed by GAM Runner, so it can\'t be uninstalled.']);
+        $this->actingAs($admin)->from('/modules')->post('/modules/uninstall', ['package' => 'someone/widgets'])->assertSessionHasErrors('modules');
+        $this->actingAs(User::factory()->create())->post('/modules/uninstall', ['package' => 'tornado-engine/gam-runner'])->assertForbidden();
+        $this->assertSame(0, UpdateJob::count());
     }
 
     public function test_modules_say_which_other_modules_they_need(): void

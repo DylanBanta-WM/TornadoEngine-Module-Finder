@@ -50,6 +50,16 @@ class Finder
             $listings[$module->package]->coreModule = $module->coreModule;
             $listings[$module->package]->missingExtensions = $module->missingExtensions ?? [];
             $listings[$module->package]->settings = $module->compatible ? ($module->settings ?? null) : null;
+            $listings[$module->package]->local = $this->local($module->path ?? null);
+        }
+
+        // Installed modules that need another installed one.
+        foreach ($this->modules->all() as $module) {
+            foreach ($module->requires ?? [] as $package) {
+                if (isset($listings[$package]) && $listings[$package]->installed !== null) {
+                    $listings[$package]->requiredBy[] = $module->name;
+                }
+            }
         }
 
         // Only other modules count as what a module needs (not PHP or Laravel packages).
@@ -79,6 +89,13 @@ class Finder
         }
 
         return implode(', ', $needs);
+    }
+
+    private function local(?string $path): bool
+    {
+        $modules = realpath(base_path('modules'));
+
+        return $path !== null && $modules !== false && str_starts_with($path, $modules.DIRECTORY_SEPARATOR);
     }
 
     /** Whether the last search reached GitHub. */

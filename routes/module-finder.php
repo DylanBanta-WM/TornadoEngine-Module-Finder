@@ -10,4 +10,5 @@ Route::middleware(['web', 'auth', 'can:modules.manage'])
         Route::get('/', [ModulesController::class, 'index'])->name('index');
         Route::post('/check', [ModulesController::class, 'check'])->name('check');
         Route::post('/install', [ModulesController::class, 'install'])->name('install');
+        Route::post('/uninstall', [ModulesController::class, 'uninstall'])->name('uninstall');
     });

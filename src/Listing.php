@@ -28,7 +28,35 @@ final class Listing
         public ?string $settings = null,
         /** @var list<string> Other modules (packages) it needs. */
         public array $requires = [],
+        /** @var list<string> Names of installed modules that need it. */
+        public array $requiredBy = [],
+        /** It's installed from a folder in web/modules. */
+        public bool $local = false,
     ) {}
+
+    public function vendor(): string
+    {
+        return strtok($this->package, '/');
+    }
+
+    /** Core modules, and modules others need, stay. */
+    public function uninstallable(): bool
+    {
+        return $this->installed !== null && ! $this->coreModule && ! $this->requiredBy;
+    }
+
+    /**
+     * Where /modules lists it: "official", "district" (this district's vendor, or a folder in
+     * web/modules GitHub doesn't list) or "other".
+     */
+    public function section(?string $districtVendor): string
+    {
+        return match (true) {
+            $this->official || (! $this->url && $this->vendor() === 'tornado-engine') => 'official',
+            ($districtVendor && $this->vendor() === $districtVendor) || (! $this->url && $this->local) => 'district',
+            default => 'other',
+        };
+    }
 
     public function updatable(): bool
     {

@@ -20,10 +20,10 @@
     </x-settings-card>
 
     @foreach ([
-        [__('Installed'), $installed, null],
-        [__('Official modules'), $official, null],
-        [__('Community modules'), $community, __('These modules aren\'t made by Tornado Engine. Install them at your own risk: a module runs with full access to your website and its data. Always read a module\'s code before you install and trust it.')],
-    ] as [$title, $listings, $warning])
+        ['official', __('Official modules'), $official, null],
+        ['district', __('Your district\'s modules'), $district, null],
+        ['other', __('Other districts\' modules'), $other, __('These aren\'t reviewed, and a module can read and change anything the website can.')],
+    ] as [$section, $title, $listings, $warning])
         @if ($listings->isNotEmpty())
             <section class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg">
                 <h3 class="px-4 pt-4 font-semibold text-gray-900 dark:text-gray-100">{{ $title }}</h3>
@@ -32,7 +32,7 @@
                 @endif
                 <ul class="mt-2 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     @foreach ($listings as $listing)
-                        @include('module-finder::card', ['listing' => $listing, 'busy' => $busy, 'all' => $all])
+                        @include('module-finder::card', ['listing' => $listing, 'busy' => $busy, 'all' => $all, 'section' => $section])
                     @endforeach
                 </ul>
             </section>
