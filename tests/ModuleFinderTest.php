@@ -83,10 +83,10 @@ class ModuleFinderTest extends TestCase
     {
         $this->actingAs($this->admin())->get('/modules')
             ->assertOk()
-            ->assertSeeInOrder(['Official modules', 'GAM', 'Installed: 0.4.0.', '0.5.0 is available.', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/administration/gam"', 'Update to 0.5.0', 'Uninstall',
-                'GAM Runner', 'Official', 'Version 0.1.0.', 'Install',
-                'Other districts&#039; modules', 'These aren&#039;t reviewed', 'Homegrown', 'Off until the server is rebuilt with zz_not_installed', 'Not listed on GitHub',
-                'Widgets', 'Community', 'Version 2.1.0.', 'View the code'], false)
+            ->assertSeeInOrder(['Official modules', 'GAM', '0.5.0 available', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/administration/gam"', 'Uninstall', 'Update to 0.5.0',
+                'GAM Runner', 'v0.1.0', 'Install',
+                'Other districts&#039; modules', 'These aren&#039;t reviewed', 'Homegrown', 'Local', 'Off until the server is rebuilt with zz_not_installed',
+                'Widgets', 'v2.1.0', 'Community', 'View the code'], false)
             ->assertDontSee('OldThing')
             ->assertDontSee('Git Only')
             ->assertDontSee('not-a-module');
@@ -252,7 +252,7 @@ class ModuleFinderTest extends TestCase
             ['name' => 'tornado-engine/access', 'pretty_version' => 'v0.9.0', 'extra' => ['tornado' => ['name' => 'Access', 'core' => '>=0.6', 'core-module' => true]]],
             ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.9.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6']]],
         ]]));
-        $this->app->instance(\App\Modules\ModuleRegistry::class, new \App\Modules\ModuleRegistry($this->installed, '0.20.0'));
+        $this->app->instance(ModuleRegistry::class, new ModuleRegistry($this->installed, '0.20.0'));
         Http::fake(['*' => Http::response([], 500)]);
 
         $this->actingAs($this->admin())->get('/modules')->assertSeeInOrder(['Core modules', 'Access', 'Official modules', 'GAM']);
