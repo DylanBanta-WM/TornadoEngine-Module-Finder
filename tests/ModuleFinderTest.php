@@ -113,7 +113,7 @@ class ModuleFinderTest extends TestCase
 
         $this->actingAs($this->admin())->get('/modules')
             ->assertOk()
-            ->assertSeeInOrder(['Official modules', 'Nav', 'Core module', 'GAM', 'GAM Runner',
+            ->assertSeeInOrder(['Core modules', 'Nav', 'Official modules', 'GAM', 'GAM Runner',
                 'Your district&#039;s modules', 'GitHub', 'elsewhere/folder-thing', 'Homegrown',
                 'Other districts&#039; modules', 'These aren&#039;t reviewed, and a module can read and change anything the website can.', 'Unlisted', 'Widgets', 'Community'], false);
     }
@@ -127,7 +127,7 @@ class ModuleFinderTest extends TestCase
         ]);
 
         $page = $this->actingAs($this->admin())->get('/modules')->assertOk();
-        $page->assertSeeInOrder(['GAM', 'Needed by GAM Runner, so it can&#039;t be uninstalled.', 'GAM Runner', 'Uninstall GAM Runner?', 'Also delete its data', 'Nav'], false)
+        $page->assertSeeInOrder(['Nav', 'GAM', 'Needed by GAM Runner, so it can&#039;t be uninstalled.', 'GAM Runner', 'Uninstall GAM Runner?', 'Also delete its data'], false)
             ->assertDontSee('Uninstall GAM?')
             ->assertDontSee('Uninstall Nav?')
             ->assertDontSee('confirm(', false);
@@ -244,5 +244,17 @@ class ModuleFinderTest extends TestCase
         $job->update(['status' => 'done']);
         $this->actingAs($admin)->get('/modules')->assertRedirect('/administration/gam');
         $this->actingAs($admin)->get('/modules')->assertOk();
+    }
+
+    public function test_core_modules_have_their_own_section_at_the_top(): void
+    {
+        file_put_contents($this->installed, json_encode(['packages' => [
+            ['name' => 'tornado-engine/access', 'pretty_version' => 'v0.9.0', 'extra' => ['tornado' => ['name' => 'Access', 'core' => '>=0.6', 'core-module' => true]]],
+            ['name' => 'tornado-engine/gam', 'pretty_version' => 'v0.9.0', 'extra' => ['tornado' => ['name' => 'GAM', 'core' => '>=0.6']]],
+        ]]));
+        $this->app->instance(\App\Modules\ModuleRegistry::class, new \App\Modules\ModuleRegistry($this->installed, '0.20.0'));
+        Http::fake(['*' => Http::response([], 500)]);
+
+        $this->actingAs($this->admin())->get('/modules')->assertSeeInOrder(['Core modules', 'Access', 'Official modules', 'GAM']);
     }
 }

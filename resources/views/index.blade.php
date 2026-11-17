@@ -20,6 +20,7 @@
     </x-settings-card>
 
     @foreach ([
+        ['core', __('Core modules'), $core, null],
         ['official', __('Official modules'), $official, null],
         ['district', __('Your district\'s modules'), $district, null],
         ['other', __('Other districts\' modules'), $other, __('These aren\'t reviewed, and a module can read and change anything the website can.')],

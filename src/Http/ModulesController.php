@@ -29,6 +29,7 @@ class ModulesController extends Controller
             ->groupBy(fn (Listing $listing) => $listing->section($vendor));
 
         return view('module-finder::index', [
+            'core' => $sections->get('core', collect()),
             'official' => $sections->get('official', collect()),
             'district' => $sections->get('district', collect()),
             'other' => $sections->get('other', collect()),

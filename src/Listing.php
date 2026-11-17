@@ -52,6 +52,7 @@ final class Listing
     public function section(?string $districtVendor): string
     {
         return match (true) {
+            $this->coreModule => 'core',
             $this->official || (! $this->url && $this->vendor() === 'tornado-engine') => 'official',
             ($districtVendor && $this->vendor() === $districtVendor) || (! $this->url && $this->local) => 'district',
             default => 'other',

@@ -10,7 +10,7 @@
             @elseif ($listing->url && ($section ?? 'other') === 'other')
                 <span class="rounded bg-amber-50 dark:bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">{{ __('Community') }}</span>
             @endif
-            @if ($listing->coreModule)
+            @if ($listing->coreModule && ($section ?? null) !== 'core')
                 <span class="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-700 dark:text-gray-300">{{ __('Core module') }}</span>
             @endif
         </p>
