@@ -39,6 +39,7 @@ class ModuleFinderTest extends TestCase
                 $repo('DylanBanta-WM', 'TornadoEngine-GAM'),
                 $repo('DylanBanta-WM', 'TornadoEngine-GAM-Runner'),
                 $repo('someone', 'TornadoWidgets'),
+                $repo('someone', 'GitOnly'),
                 $repo('someone', 'OldThing', ['archived' => true]),
                 $repo('someone', 'NotAModule'),
             ]]),
@@ -46,6 +47,11 @@ class ModuleFinderTest extends TestCase
             'raw.githubusercontent.com/DylanBanta-WM/TornadoEngine-GAM-Runner/*' => Http::response($composer('tornado-engine/gam-runner', 'GAM Runner')),
             'raw.githubusercontent.com/someone/TornadoWidgets/*' => Http::response($composer('someone/widgets', 'Widgets') + ['require' => ['tornado-engine/gam-runner' => '*', 'laravel/framework' => '*']]),
             'raw.githubusercontent.com/someone/NotAModule/*' => Http::response(['name' => 'someone/not-a-module']),
+            'raw.githubusercontent.com/someone/GitOnly/*' => Http::response($composer('someone/git-only', 'Git Only')),
+            'repo.packagist.org/p2/someone/widgets.json' => Http::response(['packages' => ['someone/widgets' => [
+                ['version' => 'v2.1.0', 'extra' => ['tornado' => ['core' => '>=0.6']], 'require' => ['tornado-engine/gam-runner' => '*', 'laravel/framework' => '*']],
+                ['version' => 'v2.0.0'],
+            ]]]),
             // Packagist's minified format: later entries only list what changed.
             'repo.packagist.org/p2/tornado-engine/gam.json' => Http::response(['packages' => ['tornado-engine/gam' => [
                 ['version' => 'v0.9.0', 'extra' => ['tornado' => ['core' => '>=0.8']]],
@@ -80,6 +86,7 @@ class ModuleFinderTest extends TestCase
                 'Official modules', 'GAM Runner', 'Official', 'Version 0.1.0.', 'Install',
                 'Community modules', 'Install them at your own risk', 'Widgets', 'Community', 'Version 2.1.0.', 'View the code'], false)
             ->assertDontSee('OldThing')
+            ->assertDontSee('Git Only')
             ->assertDontSee('not-a-module');
     }
 
@@ -99,7 +106,7 @@ class ModuleFinderTest extends TestCase
 
         $this->actingAs($admin)->post('/modules/install', ['package' => 'someone/widgets'])->assertSessionHas('modules_status');
         $job = UpdateJob::sole();
-        $this->assertSame(['module', 'someone/widgets', '2.1.0', 'https://github.com/someone/TornadoWidgets'], [$job->kind, $job->package, $job->version, $job->repository]);
+        $this->assertSame(['module', 'someone/widgets', '2.1.0', null], [$job->kind, $job->package, $job->version, $job->repository]);
 
         // One at a time.
         $this->actingAs($admin)->from('/modules')->post('/modules/install', ['package' => 'tornado-engine/gam-runner'])->assertSessionHasErrors('modules');

@@ -39,7 +39,9 @@ class Finder
 
         $listings = [];
         foreach ($found ?: [] as $data) {
-            $listings[$data['package']] = new Listing(...$data);
+            if ($data['official'] || $data['onPackagist']) {
+                $listings[$data['package']] = new Listing(...$data);
+            }
         }
 
         foreach ($this->modules->all() as $module) {

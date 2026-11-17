@@ -10,6 +10,11 @@ use TornadoEngine\Nav\Nav;
 
 class ModuleFinderServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->singleton(ModuleActions::class);
+    }
+
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'module-finder');

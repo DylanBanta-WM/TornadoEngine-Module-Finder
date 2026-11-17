@@ -65,5 +65,8 @@
             </form>
         @endif
         </div>
+        @foreach (app(\TornadoEngine\ModuleFinder\ModuleActions::class)->views() as $action)
+            @include($action, ['listing' => $listing])
+        @endforeach
     </div>
 </li>
