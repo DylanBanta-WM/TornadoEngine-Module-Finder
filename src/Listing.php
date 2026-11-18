@@ -32,6 +32,8 @@ final class Listing
         public array $requiredBy = [],
         /** It's installed from a folder in web/modules. */
         public bool $local = false,
+        /** First-time setup offers it ("suggest": true in extra.tornado; official modules only). */
+        public bool $suggested = false,
     ) {}
 
     public function vendor(): string

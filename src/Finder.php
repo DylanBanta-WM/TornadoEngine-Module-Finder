@@ -28,13 +28,13 @@ class Finder
     public function listings(bool $fresh = false): array
     {
         if ($fresh) {
-            Cache::forget('module-finder.found');
+            Cache::forget('module-finder.found.v2');
         }
 
-        $found = Cache::get('module-finder.found');
+        $found = Cache::get('module-finder.found.v2');
         if ($found === null) {
             $found = $this->search();
-            Cache::put('module-finder.found', $found, $found === false ? 300 : 3600);
+            Cache::put('module-finder.found.v2', $found, $found === false ? 300 : 3600);
         }
 
         $listings = [];
@@ -101,7 +101,7 @@ class Finder
     /** Whether the last search reached GitHub. */
     public function reachable(): bool
     {
-        return Cache::get('module-finder.found') !== false;
+        return Cache::get('module-finder.found.v2') !== false;
     }
 
     /** @return list<array<string, mixed>>|false */
@@ -163,6 +163,7 @@ class Finder
             'latest' => $latest,
             'needsNewerCore' => $newest !== $latest ? $newest : null,
             'requires' => $latest ? $versions[$latest]['requires'] : [],
+            'suggested' => (bool) ($tornado['suggest'] ?? false),
         ];
     }
 

@@ -22,7 +22,7 @@ class ModuleFinderTest extends TestCase
     {
         parent::setUp();
         config(['tornado.version' => '0.7.0']);
-        Cache::forget('module-finder.found');
+        Cache::forget('module-finder.found.v2');
 
         // Installed here: GAM 0.4.0 (a newer one is on Packagist) and a module GitHub doesn't list.
         $this->installed = sys_get_temp_dir().'/installed.'.uniqid().'.json';
@@ -214,7 +214,7 @@ class ModuleFinderTest extends TestCase
     {
         Http::swap(new Factory);
         Http::fake(['*' => Http::response([], 500)]);
-        Cache::forget('module-finder.found');
+        Cache::forget('module-finder.found.v2');
 
         $this->actingAs($this->admin())->get('/modules')->assertOk()->assertSee('Couldn\'t reach GitHub')->assertSee('Homegrown');
     }
