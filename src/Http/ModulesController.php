@@ -3,6 +3,7 @@
 namespace TornadoEngine\ModuleFinder\Http;
 
 use App\Modules\ModuleRegistry;
+use App\Modules\Setup;
 use App\Updates\Rebuild;
 use App\Updates\UpdateJob;
 use Illuminate\Http\RedirectResponse;
@@ -54,7 +55,15 @@ class ModulesController extends Controller
         foreach (UpdateJob::where('user_id', $request->user()->id)->where('kind', 'module')->where('install', true)->where('status', 'done')->whereNull('opened_at')->orderBy('id')->get() as $job) {
             $job->update(['opened_at' => now()]);
             $module = $modules[$job->package] ?? null;
-            if ($module && $module->compatible && ($module->needsSetup ?? false) && $module->settings) {
+            if (! $module || ! $module->compatible) {
+                continue;
+            }
+            // Core 0.24+: the settings of the modules it needs come first, then its own.
+            if (class_exists(Setup::class)) {
+                if ($url = app(Setup::class)->start($module)) {
+                    return $url;
+                }
+            } elseif (($module->needsSetup ?? false) && $module->settings) {
                 return url($module->settings);
             }
         }
