@@ -47,6 +47,10 @@ class ModulesController extends Controller
      */
     private function settingsToOpen(Request $request): ?string
     {
+        // Not during the tour (after first-time setup): it would take them off it. The bell lists them meanwhile.
+        if ($request->user()->tour_step ?? null) {
+            return null;
+        }
         if (UpdateJob::busy() || (class_exists(Rebuild::class) && (Rebuild::needed() || Rebuild::running()))) {
             return null;
         }
