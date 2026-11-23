@@ -35,6 +35,15 @@
                 <x-secondary-button type="submit">{{ __('Check now') }}</x-secondary-button>
             </form>
         </div>
+        <form method="POST" action="{{ route('modules.auto-update') }}" class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+            @csrf
+            <input type="hidden" name="enabled" value="{{ $autoUpdate ? 0 : 1 }}">
+            <p class="min-w-0">
+                {{ $autoUpdate ? __('Updates marked Required install by themselves for official modules.') : __('Updates marked Required don\'t install by themselves.') }}
+                {{ __('Other districts\' modules are never updated by themselves.') }}
+            </p>
+            <x-secondary-button type="submit">{{ $autoUpdate ? __('Turn off') : __('Turn on') }}</x-secondary-button>
+        </form>
         <div x-show="jobs" @unless ($busy) x-cloak @endunless class="mt-3 text-sm">
             <x-update-jobs :jobs="$jobs" />
         </div>

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use TornadoEngine\Access\Access;
+use TornadoEngine\Cron\Cron;
 use TornadoEngine\Nav\Nav;
 
 class ModuleFinderServiceProvider extends ServiceProvider
@@ -24,6 +25,15 @@ class ModuleFinderServiceProvider extends ServiceProvider
         Gate::define('modules.manage', fn (User $user) => (bool) $user->is_admin);
         $this->callAfterResolving(Access::class, function (Access $access) {
             $access->permission('modules.manage', __('Install and update modules'), 'Core');
+        });
+
+        // Official modules' updates marked "required" install by themselves (Administration → Scheduled jobs).
+        $this->callAfterResolving(Cron::class, function ($cron) {
+            $cron->job('modules.auto-update', __('Install required module updates'), function () {
+                $job = app(AutoUpdate::class)->run();
+
+                return $job ? __('Queued :package :version.', ['package' => $job->package, 'version' => $job->version]) : __('Nothing to install.');
+            }, schedule: '20 * * * *', description: __('Installs updates marked required for official modules. Other districts\' modules are never updated by themselves.'));
         });
 
         $this->callAfterResolving(Nav::class, function (Nav $nav) {

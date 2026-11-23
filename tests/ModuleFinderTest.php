@@ -18,6 +18,11 @@ class ModuleFinderTest extends TestCase
 
     private string $installed;
 
+    /** What the releases' notes say, for tests to change. */
+    private string $gam050 = "Fixes the sync.\n\n**Type:** Bug fix\n";
+
+    private string $widgets210 = '';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -65,10 +70,11 @@ class ModuleFinderTest extends TestCase
             ]]]),
             'repo.packagist.org/*' => Http::response([], 404),
             // GAM 0.5.0 says it's a bug fix in its release notes.
-            'api.github.com/repos/DylanBanta-WM/TornadoEngine-GAM/releases*' => Http::response([
-                ['tag_name' => 'v0.5.0', 'body' => "Fixes the sync.\n\n**Type:** Bug fix\n"],
+            'api.github.com/repos/DylanBanta-WM/TornadoEngine-GAM/releases*' => fn () => Http::response([
+                ['tag_name' => 'v0.5.0', 'body' => $this->gam050],
                 ['tag_name' => 'v0.4.0', 'body' => 'Type: critical'],
             ]),
+            'api.github.com/repos/someone/TornadoWidgets/releases*' => fn () => Http::response([['tag_name' => 'v2.1.0', 'body' => $this->widgets210]]),
             'api.github.com/repos/*/releases*' => Http::response([]),
             'api.github.com/repos/someone/TornadoWidgets/tags*' => Http::response([['name' => 'v2.1.0'], ['name' => 'v2.0.0']]),
         ]);
@@ -286,5 +292,36 @@ class ModuleFinderTest extends TestCase
         $this->assertSame('required', $listing->updateType());
         $this->assertSame('bug-fix', \TornadoEngine\ModuleFinder\Listing::normalizeType('Bug fix'));
         $this->assertNull(\TornadoEngine\ModuleFinder\Listing::normalizeType('whatever'));
+    }
+
+    public function test_required_updates_to_official_modules_install_by_themselves(): void
+    {
+        // Not yet: GAM 0.5.0 is only a bug fix.
+        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+
+        // Marked required, it's queued once; with one running, nothing more is.
+        Cache::forget('module-finder.found.v3');
+        $this->gam050 = 'Type: required';
+        $job = app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run();
+        $this->assertSame(['tornado-engine/gam', '0.5.0'], [$job?->package, $job?->version]);
+        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+
+        // A failed one isn't tried again, and an admin can turn it off.
+        $job->update(['status' => 'failed']);
+        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $job->update(['status' => 'done']);
+        $this->actingAs($this->admin())->post('/modules/auto-update', ['enabled' => 0])->assertRedirect();
+        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->actingAs($this->admin())->get('/modules')->assertSee('don&#039;t install by themselves', false);
+    }
+
+    public function test_other_districts_modules_are_never_updated_by_themselves(): void
+    {
+        $this->install([['name' => 'someone/widgets', 'pretty_version' => 'v2.0.0', 'extra' => ['tornado' => ['name' => 'Widgets', 'core' => '>=0.6']]]]);
+        Cache::forget('module-finder.found.v3');
+        $this->widgets210 = 'Type: required';
+
+        $this->assertSame('required', app(\TornadoEngine\ModuleFinder\Finder::class)->listings()['someone/widgets']->updateType());
+        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
     }
 }

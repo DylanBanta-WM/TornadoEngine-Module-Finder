@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 use TornadoEngine\Chat\Chat;
+use TornadoEngine\ModuleFinder\AutoUpdate;
 use TornadoEngine\ModuleFinder\Finder;
 use TornadoEngine\ModuleFinder\Listing;
 
@@ -37,6 +38,7 @@ class ModulesController extends Controller
             'reachable' => $finder->reachable(),
             'jobs' => UpdateJob::with('user')->whereIn('kind', ['module', 'remove'])->latest('id')->take(200)->get(),
             'busy' => UpdateJob::busy(),
+            'autoUpdate' => AutoUpdate::enabled(),
             'all' => $listings->all(),
         ]);
     }
@@ -80,6 +82,16 @@ class ModulesController extends Controller
         $finder->listings(fresh: true);
 
         return back()->with('modules_status', $finder->reachable() ? __('Checked GitHub for modules.') : __('Couldn\'t reach GitHub. Try again later.'));
+    }
+
+    /** Turns installing official modules' required updates by themselves on or off. */
+    public function autoUpdate(Request $request): RedirectResponse
+    {
+        AutoUpdate::enable($request->boolean('enabled'));
+
+        return back()->with('modules_status', $request->boolean('enabled')
+            ? __('Required updates to official modules will install by themselves.')
+            : __('Required updates will no longer install by themselves.'));
     }
 
     /**
