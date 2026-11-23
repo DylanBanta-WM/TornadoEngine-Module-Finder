@@ -55,7 +55,8 @@ final class Listing
     {
         return match (true) {
             $this->coreModule => 'core',
-            $this->official || (! $this->url && $this->vendor() === 'tornado-engine') => 'official',
+            // Official means in the official GitHub account; a local folder named tornado-engine/… isn't yet.
+            $this->official => 'official',
             ($districtVendor && $this->vendor() === $districtVendor) || (! $this->url && $this->local) => 'district',
             default => 'other',
         };
