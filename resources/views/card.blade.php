@@ -11,6 +11,8 @@
         </div>
         <div class="flex shrink-0 flex-wrap justify-end gap-1">
             @if ($listing->updatable())
+                @php($type = \TornadoEngine\ModuleFinder\Listing::TYPES[$listing->updateType()])
+                <span class="{{ $chip }} {{ $type[1] }}">{{ __($type[0]) }}</span>
                 <span class="{{ $chip }} bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">{{ __(':version available', ['version' => $listing->latest]) }}</span>
             @elseif ($listing->installed !== null)
                 <span class="{{ $chip }} bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">{{ preg_match('/^\d/', $listing->installed) ? 'v'.$listing->installed : $listing->installed }}</span>

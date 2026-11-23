@@ -28,13 +28,13 @@ class Finder
     public function listings(bool $fresh = false): array
     {
         if ($fresh) {
-            Cache::forget('module-finder.found.v2');
+            Cache::forget('module-finder.found.v3');
         }
 
-        $found = Cache::get('module-finder.found.v2');
+        $found = Cache::get('module-finder.found.v3');
         if ($found === null) {
             $found = $this->search();
-            Cache::put('module-finder.found.v2', $found, $found === false ? 300 : 3600);
+            Cache::put('module-finder.found.v3', $found, $found === false ? 300 : 3600);
         }
 
         $listings = [];
@@ -101,7 +101,7 @@ class Finder
     /** Whether the last search reached GitHub. */
     public function reachable(): bool
     {
-        return Cache::get('module-finder.found.v2') !== false;
+        return Cache::get('module-finder.found.v3') !== false;
     }
 
     /** @return list<array<string, mixed>>|false */
@@ -147,11 +147,20 @@ class Finder
         $onPackagist = $versions !== null;
         $versions ??= $this->tags($repo['full_name'], (string) ($tornado['core'] ?? '*'), array_keys($composer['require'] ?? []));
 
+        // What each release says it is: its own composer.json (Packagist), then its GitHub release notes.
+        $types = array_filter(array_map(fn ($version) => $version['type'] ?? null, $versions));
+        $types = $this->releaseNotes($repo['full_name']) + $types;
+
         $core = config('tornado.version');
         $usable = array_keys(array_filter($versions, fn ($version) => $this->supports($version['core'], $core)));
         $all = array_keys($versions);
         $latest = $usable ? Semver::rsort($usable)[0] : null;
         $newest = $all ? Semver::rsort($all)[0] : null;
+
+        // composer.json on the default branch describes the newest version, when it has no type of its own.
+        if ($latest && ! isset($types[$latest]) && ($declared = Listing::normalizeType($tornado['update-type'] ?? null))) {
+            $types[$latest] = $declared;
+        }
 
         return [
             'package' => $package,
@@ -164,7 +173,36 @@ class Finder
             'needsNewerCore' => $newest !== $latest ? $newest : null,
             'requires' => $latest ? $versions[$latest]['requires'] : [],
             'suggested' => (bool) ($tornado['suggest'] ?? false),
+            'releaseTypes' => $types,
         ];
+    }
+
+    /**
+     * The kind of update each GitHub release says it is: a line such as "Type: critical" or
+     * "Update type: bug fix" in its notes. Releases that don't say are left out.
+     *
+     * @return array<string, string> by version
+     */
+    private function releaseNotes(string $repo): array
+    {
+        try {
+            $releases = $this->http()->get("https://api.github.com/repos/{$repo}/releases", ['per_page' => 50])->throw()->json() ?? [];
+        } catch (Throwable) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($releases as $release) {
+            $version = ltrim((string) ($release['tag_name'] ?? ''), 'v');
+            if (($release['draft'] ?? false) || ! preg_match('/^\d+\.\d+\.\d+$/', $version)) {
+                continue;
+            }
+            if (preg_match('/^[\s*_>#-]*(?:update[\s-]+)?type[\s*_]*:[\s*_]*([a-z][a-z -]*?)[\s*_]*$/im', (string) ($release['body'] ?? ''), $match) && ($type = Listing::normalizeType($match[1]))) {
+                $types[$version] = $type;
+            }
+        }
+
+        return $types;
     }
 
     /** @return array<string, array{core: string, requires: list<string>}>|null by version, or null if it isn't on Packagist */
@@ -184,7 +222,7 @@ class Finder
 
             $version = ltrim((string) ($entry['version'] ?? ''), 'v');
             if (preg_match('/^\d+\.\d+\.\d+$/', $version)) {
-                $versions[$version] = ['core' => (string) ($entry['extra']['tornado']['core'] ?? '*'), 'requires' => array_keys((array) ($entry['require'] ?? []))];
+                $versions[$version] = ['core' => (string) ($entry['extra']['tornado']['core'] ?? '*'), 'requires' => array_keys((array) ($entry['require'] ?? [])), 'type' => Listing::normalizeType($entry['extra']['tornado']['update-type'] ?? null)];
             }
         }
 

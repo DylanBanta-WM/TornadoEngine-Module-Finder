@@ -22,7 +22,7 @@ class ModuleFinderTest extends TestCase
     {
         parent::setUp();
         config(['tornado.version' => '0.7.0']);
-        Cache::forget('module-finder.found.v2');
+        Cache::forget('module-finder.found.v3');
 
         // Installed here: GAM 0.4.0 (a newer one is on Packagist) and a module GitHub doesn't list.
         $this->installed = sys_get_temp_dir().'/installed.'.uniqid().'.json';
@@ -64,6 +64,12 @@ class ModuleFinderTest extends TestCase
                 ['version' => 'v0.1.0', 'extra' => ['tornado' => ['core' => '>=0.7']], 'require' => ['php' => '^8.4', 'tornado-engine/gam' => '>=0.5']],
             ]]]),
             'repo.packagist.org/*' => Http::response([], 404),
+            // GAM 0.5.0 says it's a bug fix in its release notes.
+            'api.github.com/repos/DylanBanta-WM/TornadoEngine-GAM/releases*' => Http::response([
+                ['tag_name' => 'v0.5.0', 'body' => "Fixes the sync.\n\n**Type:** Bug fix\n"],
+                ['tag_name' => 'v0.4.0', 'body' => 'Type: critical'],
+            ]),
+            'api.github.com/repos/*/releases*' => Http::response([]),
             'api.github.com/repos/someone/TornadoWidgets/tags*' => Http::response([['name' => 'v2.1.0'], ['name' => 'v2.0.0']]),
         ]);
     }
@@ -214,7 +220,7 @@ class ModuleFinderTest extends TestCase
     {
         Http::swap(new Factory);
         Http::fake(['*' => Http::response([], 500)]);
-        Cache::forget('module-finder.found.v2');
+        Cache::forget('module-finder.found.v3');
 
         $this->actingAs($this->admin())->get('/modules')->assertOk()->assertSee('Couldn\'t reach GitHub')->assertSee('Homegrown');
     }
@@ -256,5 +262,29 @@ class ModuleFinderTest extends TestCase
         Http::fake(['*' => Http::response([], 500)]);
 
         $this->actingAs($this->admin())->get('/modules')->assertSeeInOrder(['Core modules', 'Access', 'Official modules', 'GAM']);
+    }
+
+    public function test_updates_say_what_kind_they_are(): void
+    {
+        // GAM: its release notes say bug fix (0.4.0's critical is the installed version, so it doesn't count).
+        $this->actingAs($this->admin())->get('/modules')->assertSeeInOrder(['Bug fix', '0.5.0 available'], false);
+        $listings = app(\TornadoEngine\ModuleFinder\Finder::class)->listings();
+        $this->assertSame('bug-fix', $listings['tornado-engine/gam']->updateType());
+        $this->assertNull($listings['tornado-engine/gam-runner']->updateType());
+
+        // With nothing said, the version numbers decide; the most urgent word wins.
+        $listing = new \TornadoEngine\ModuleFinder\Listing('a/b', 'B', null, null, false, false, '2.0.0', null, installed: '1.4.2');
+        $this->assertSame('major', $listing->updateType());
+        $listing->latest = '1.5.0';
+        $this->assertSame('minor', $listing->updateType());
+        $listing->latest = '1.4.3';
+        $this->assertSame('patch', $listing->updateType());
+        $listing->releaseTypes = ['1.4.3' => 'optional', '1.4.2' => 'critical'];
+        $this->assertSame('optional', $listing->updateType());
+        $listing->latest = '1.5.0';
+        $listing->releaseTypes = ['1.4.3' => 'optional', '1.5.0' => 'required'];
+        $this->assertSame('required', $listing->updateType());
+        $this->assertSame('bug-fix', \TornadoEngine\ModuleFinder\Listing::normalizeType('Bug fix'));
+        $this->assertNull(\TornadoEngine\ModuleFinder\Listing::normalizeType('whatever'));
     }
 }
