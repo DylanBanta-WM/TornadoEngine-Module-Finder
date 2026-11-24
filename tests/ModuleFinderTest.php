@@ -95,7 +95,7 @@ class ModuleFinderTest extends TestCase
     {
         $this->actingAs($this->admin())->get('/modules')
             ->assertOk()
-            ->assertSeeInOrder(['Official modules', 'GAM', '0.5.0 available', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/administration/gam"', 'Uninstall', 'Update to 0.5.0',
+            ->assertSeeInOrder(['Official modules', 'GAM', '0.5.0 available', '0.9.0 needs a newer Tornado Engine Core.', 'href="http://localhost/settings/gam"', 'Uninstall', 'Update to 0.5.0',
                 'GAM Runner', 'v0.1.0', 'Install',
                 'Other districts&#039; modules', 'These aren&#039;t reviewed', 'Homegrown', 'Local', 'Off until the server is rebuilt with zz_not_installed',
                 'Widgets', 'v2.1.0', 'Community', 'View the code'], false)
@@ -254,7 +254,7 @@ class ModuleFinderTest extends TestCase
         $this->actingAs($admin)->get('/modules')->assertOk();
 
         $job->update(['status' => 'done']);
-        $this->actingAs($admin)->get('/modules')->assertRedirect('/administration/gam');
+        $this->actingAs($admin)->get('/modules')->assertRedirect('/settings/gam');
         $this->actingAs($admin)->get('/modules')->assertOk();
     }
 
