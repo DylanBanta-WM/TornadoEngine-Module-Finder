@@ -11,6 +11,9 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use TornadoEngine\ModuleFinder\AutoUpdate;
+use TornadoEngine\ModuleFinder\Finder;
+use TornadoEngine\ModuleFinder\Listing;
 
 class ModuleFinderTest extends TestCase
 {
@@ -274,12 +277,12 @@ class ModuleFinderTest extends TestCase
     {
         // GAM: its release notes say bug fix (0.4.0's critical is the installed version, so it doesn't count).
         $this->actingAs($this->admin())->get('/modules')->assertSeeInOrder(['Bug fix', '0.5.0 available'], false);
-        $listings = app(\TornadoEngine\ModuleFinder\Finder::class)->listings();
+        $listings = app(Finder::class)->listings();
         $this->assertSame('bug-fix', $listings['tornado-engine/gam']->updateType());
         $this->assertNull($listings['tornado-engine/gam-runner']->updateType());
 
         // With nothing said, the version numbers decide; the most urgent word wins.
-        $listing = new \TornadoEngine\ModuleFinder\Listing('a/b', 'B', null, null, false, false, '2.0.0', null, installed: '1.4.2');
+        $listing = new Listing('a/b', 'B', null, null, false, false, '2.0.0', null, installed: '1.4.2');
         $this->assertSame('major', $listing->updateType());
         $listing->latest = '1.5.0';
         $this->assertSame('minor', $listing->updateType());
@@ -290,28 +293,28 @@ class ModuleFinderTest extends TestCase
         $listing->latest = '1.5.0';
         $listing->releaseTypes = ['1.4.3' => 'optional', '1.5.0' => 'required'];
         $this->assertSame('required', $listing->updateType());
-        $this->assertSame('bug-fix', \TornadoEngine\ModuleFinder\Listing::normalizeType('Bug fix'));
-        $this->assertNull(\TornadoEngine\ModuleFinder\Listing::normalizeType('whatever'));
+        $this->assertSame('bug-fix', Listing::normalizeType('Bug fix'));
+        $this->assertNull(Listing::normalizeType('whatever'));
     }
 
     public function test_required_updates_to_official_modules_install_by_themselves(): void
     {
         // Not yet: GAM 0.5.0 is only a bug fix.
-        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->assertNull(app(AutoUpdate::class)->run());
 
         // Marked required, it's queued once; with one running, nothing more is.
         Cache::forget('module-finder.found.v3');
         $this->gam050 = 'Type: required';
-        $job = app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run();
+        $job = app(AutoUpdate::class)->run();
         $this->assertSame(['tornado-engine/gam', '0.5.0'], [$job?->package, $job?->version]);
-        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->assertNull(app(AutoUpdate::class)->run());
 
         // A failed one isn't tried again, and an admin can turn it off.
         $job->update(['status' => 'failed']);
-        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->assertNull(app(AutoUpdate::class)->run());
         $job->update(['status' => 'done']);
         $this->actingAs($this->admin())->post('/modules/auto-update', ['enabled' => 0])->assertRedirect();
-        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->assertNull(app(AutoUpdate::class)->run());
         $this->actingAs($this->admin())->get('/modules')->assertSee('don&#039;t install by themselves', false);
     }
 
@@ -321,7 +324,16 @@ class ModuleFinderTest extends TestCase
         Cache::forget('module-finder.found.v3');
         $this->widgets210 = 'Type: required';
 
-        $this->assertSame('required', app(\TornadoEngine\ModuleFinder\Finder::class)->listings()['someone/widgets']->updateType());
-        $this->assertNull(app(\TornadoEngine\ModuleFinder\AutoUpdate::class)->run());
+        $this->assertSame('required', app(Finder::class)->listings()['someone/widgets']->updateType());
+        $this->assertNull(app(AutoUpdate::class)->run());
+    }
+
+    public function test_the_required_updates_switch_is_on_settings_updates(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->get('/settings/updates')->assertSee('Required updates')->assertSee('always relevant security fixes')->assertSee('Turn off');
+        $this->actingAs($admin)->from('/settings/updates')->post('/modules/auto-update', ['enabled' => 0])->assertRedirect('/settings/updates')->assertSessionHas('auto_update_status');
+        $this->assertFalse(AutoUpdate::enabled());
+        $this->actingAs($admin)->get('/settings/updates')->assertSee('don&#039;t install by themselves', false)->assertSee('Turn on');
     }
 }

@@ -89,7 +89,7 @@ class ModulesController extends Controller
     {
         AutoUpdate::enable($request->boolean('enabled'));
 
-        return back()->with('modules_status', $request->boolean('enabled')
+        return back()->with(str_contains((string) $request->headers->get('referer'), '/settings') ? 'auto_update_status' : 'modules_status', $request->boolean('enabled')
             ? __('Required updates to official modules will install by themselves.')
             : __('Required updates will no longer install by themselves.'));
     }

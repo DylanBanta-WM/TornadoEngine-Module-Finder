@@ -2,6 +2,7 @@
 
 namespace TornadoEngine\ModuleFinder;
 
+use App\Administration\Administration;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -26,6 +27,9 @@ class ModuleFinderServiceProvider extends ServiceProvider
         $this->callAfterResolving(Access::class, function (Access $access) {
             $access->permission('modules.manage', __('Install and update modules'), 'Core');
         });
+
+        // Its switch is on Settings → Updates.
+        $this->callAfterResolving(Administration::class, fn ($administration) => $administration->card('module-finder::auto-update-card', order: 30, tab: 'updates'));
 
         // Official modules' updates marked "required" install by themselves (Administration → Scheduled jobs).
         $this->callAfterResolving(Cron::class, function ($cron) {
